@@ -22,6 +22,8 @@ from g4f.client import Client
 from g4f.typing import Messages
 from g4f.cookies import read_cookie_files
 
+logger = logging.getLogger(__name__)
+
 def create_app():
     app = FastAPI()
     api = Api(app)
@@ -182,13 +184,13 @@ class Api:
                     except GeneratorExit:
                         pass
                     except Exception as e:
-                        logging.exception(e)
+                        logger.exception(e)
                         yield f'data: {format_exception(e, config)}\n\n'
                     yield "data: [DONE]\n\n"
                 return StreamingResponse(streaming(), media_type="text/event-stream")
 
             except Exception as e:
-                logging.exception(e)
+                logger.exception(e)
                 return Response(content=format_exception(e, config), status_code=500, media_type="application/json")
 
         @self.app.post("/v1/completions")
@@ -211,7 +213,7 @@ class Api:
                 )
                 return JSONResponse(response.to_json())
             except Exception as e:
-                logging.exception(e)
+                logger.exception(e)
                 return Response(content=format_exception(e, config), status_code=500, media_type="application/json")
 
 def format_exception(e: Exception, config: ChatCompletionsForm) -> str:

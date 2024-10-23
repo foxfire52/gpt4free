@@ -20,6 +20,7 @@ from g4f.Provider import ProviderType, __providers__, __map__
 from g4f.providers.base_provider import ProviderModelMixin, FinishReason
 from g4f.providers.conversation import BaseConversation
 
+logger = logging.getLogger(__name__)
 conversations: dict[dict[str, BaseConversation]] = {}
 images_dir = "./generated_images"
 
@@ -163,31 +164,42 @@ class Api:
                 if first:
                     first = False
                     yield self._format_json("provider", get_last_provider(True))
-                yield self._format_json("content", str(result))
-            else:
-                # Якщо результат є ітерабельним, обробляємо його як раніше
-                for chunk in result:
-                    if first:
-                        first = False
-                        yield self._format_json("provider", get_last_provider(True))
-                    if isinstance(chunk, BaseConversation):
-                        if provider not in conversations:
-                            conversations[provider] = {}
-                        conversations[provider][conversation_id] = chunk
-                        yield self._format_json("conversation", conversation_id)
-                    elif isinstance(chunk, Exception):
-                        logging.exception(chunk)
-                        yield self._format_json("message", get_error_message(chunk))
-                    elif isinstance(chunk, ImagePreview):
-                        yield self._format_json("preview", chunk.to_string())
-                    elif isinstance(chunk, ImageResponse):
-                        # Обробка ImageResponse
-                        images = asyncio.run(self._copy_images(chunk.get_list(), chunk.options.get("cookies")))
-                        yield self._format_json("content", str(ImageResponse(images, chunk.alt)))
-                    elif not isinstance(chunk, FinishReason):
-                        yield self._format_json("content", str(chunk))
+
+                if isinstance(chunk, BaseConversation):
+                    if provider not in conversations:
+                        conversations[provider] = {}
+                    conversations[provider][conversation_id] = chunk
+                    yield self._format_json("conversation", conversation_id)
+                elif isinstance(chunk, Exception):
+                    logger.exception(chunk)
+                    yield self._format_json("message", get_error_message(chunk))
+                elif isinstance(chunk, ImagePreview):
+                    yield self._format_json("preview", chunk.to_string())
+                elif isinstance(chunk, ImageResponse):
+                    async def copy_images(images: list[str], cookies: Optional[Cookies] = None):
+                        async with ClientSession(
+                            connector=get_connector(None, os.environ.get("G4F_PROXY")),
+                            cookies=cookies
+                        ) as session:
+                            async def copy_image(image):
+                                async with session.get(image) as response:
+                                    target = os.path.join(images_dir, f"{int(time.time())}_{str(uuid.uuid4())}")
+                                    with open(target, "wb") as f:
+                                        async for chunk in response.content.iter_any():
+                                            f.write(chunk)
+                                    with open(target, "rb") as f:
+                                        extension = is_accepted_format(f.read(12)).split("/")[-1]
+                                        extension = "jpg" if extension == "jpeg" else extension
+                                    new_target = f"{target}.{extension}"
+                                    os.rename(target, new_target)
+                                    return f"/images/{os.path.basename(new_target)}"
+                            return await asyncio.gather(*[copy_image(image) for image in images])                                
+                    images = asyncio.run(copy_images(chunk.get_list(), chunk.options.get("cookies")))
+                    yield self._format_json("content", str(ImageResponse(images, chunk.alt)))
+                elif not isinstance(chunk, FinishReason):
+                    yield self._format_json("content", str(chunk))
         except Exception as e:
-            logging.exception(e)
+            logger.exception(e)
             yield self._format_json('error', get_error_message(e))
 
     # Додайте цей метод до класу Api
