@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 conversations: dict[dict[str, BaseConversation]] = {}
 images_dir = "./generated_images"
 
-class Api():
 
+class Api:
     @staticmethod
     def get_models() -> list[str]:
         """
@@ -43,14 +43,11 @@ class Api():
         if provider in __map__:
             provider: ProviderType = __map__[provider]
             if issubclass(provider, ProviderModelMixin):
-                return [{"model": model, "default": model == provider.default_model} for model in provider.get_models()]
-            elif provider.supports_gpt_35_turbo or provider.supports_gpt_4:
                 return [
-                    *([{"model": "gpt-4", "default": not provider.supports_gpt_4}] if provider.supports_gpt_4 else []),
-                    *([{"model": "gpt-3.5-turbo", "default": not provider.supports_gpt_4}] if provider.supports_gpt_35_turbo else [])
+                    {"model": model, "default": model == provider.default_model}
+                    for model in provider.get_models()
                 ]
-            else:
-                return [];
+        return []
 
     @staticmethod
     def get_image_models() -> list[dict]:
@@ -72,7 +69,7 @@ class Api():
                             "image_model": model,
                             "vision_model": parent.default_vision_model if hasattr(parent, "default_vision_model") else None
                         })
-                        index.append(parent.__name__)
+                    index.append(parent.__name__)
             elif hasattr(provider, "default_vision_model") and provider.__name__ not in index:
                 image_models.append({
                     "provider": provider.__name__,
@@ -90,15 +87,13 @@ class Api():
         Return a list of all working providers.
         """
         return {
-            provider.__name__: (provider.label
-                if hasattr(provider, "label")
-                else provider.__name__) +
-                (" (WebDriver)"
-                if "webdriver" in provider.get_parameters()
-                else "") + 
-                (" (Auth)"
-                if provider.needs_auth
-                else "")
+            provider.__name__: (
+                provider.label if hasattr(provider, "label") else provider.__name__
+            ) + (
+                " (WebDriver)" if "webdriver" in provider.get_parameters() else ""
+            ) + (
+                " (Auth)" if provider.needs_auth else ""
+            )
             for provider in __providers__
             if provider.working
         }
@@ -132,7 +127,7 @@ class Api():
 
         Returns:
             dict: Arguments prepared for chat completion.
-        """ 
+        """
         model = json_data.get('model') or models.default
         provider = json_data.get('provider')
         messages = json_data['messages']
@@ -161,24 +156,15 @@ class Api():
         }
 
     def _create_response_stream(self, kwargs: dict, conversation_id: str, provider: str) -> Iterator:
-        """
-        Creates and returns a streaming response for the conversation.
-
-        Args:
-            kwargs (dict): Arguments for creating the chat completion.
-
-        Yields:
-            str: JSON formatted response chunks for the stream.
-
-        Raises:
-            Exception: If an error occurs during the streaming process.
-        """
         try:
+            result = ChatCompletion.create(**kwargs)
             first = True
-            for chunk in ChatCompletion.create(**kwargs):
+            if isinstance(result, ImageResponse):
+                # Якщо результат є ImageResponse, обробляємо його як одиночний елемент
                 if first:
                     first = False
                     yield self._format_json("provider", get_last_provider(True))
+
                 if isinstance(chunk, BaseConversation):
                     if provider not in conversations:
                         conversations[provider] = {}
@@ -216,6 +202,27 @@ class Api():
             logger.exception(e)
             yield self._format_json('error', get_error_message(e))
 
+    # Додайте цей метод до класу Api
+    async def _copy_images(self, images: list[str], cookies: Optional[Cookies] = None):
+        async with ClientSession(
+            connector=get_connector(None, os.environ.get("G4F_PROXY")),
+            cookies=cookies
+        ) as session:
+            async def copy_image(image):
+                async with session.get(image) as response:
+                    target = os.path.join(images_dir, f"{int(time.time())}_{str(uuid.uuid4())}")
+                    with open(target, "wb") as f:
+                        async for chunk in response.content.iter_any():
+                            f.write(chunk)
+                    with open(target, "rb") as f:
+                        extension = is_accepted_format(f.read(12)).split("/")[-1]
+                        extension = "jpg" if extension == "jpeg" else extension
+                    new_target = f"{target}.{extension}"
+                    os.rename(target, new_target)
+                    return f"/images/{os.path.basename(new_target)}"
+
+            return await asyncio.gather(*[copy_image(image) for image in images])
+
     def _format_json(self, response_type: str, content):
         """
         Formats and returns a JSON response.
@@ -231,6 +238,7 @@ class Api():
             'type': response_type,
             response_type: content
         }
+
 
 def get_error_message(exception: Exception) -> str:
     """
