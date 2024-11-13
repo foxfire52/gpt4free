@@ -15,6 +15,7 @@ except ImportError:
     from typing import Type as WebDriver
     has_requirements = False
 
+import logging
 import time
 from shutil import which
 from os import path
@@ -22,6 +23,8 @@ from os import access, R_OK
 from .typing import Cookies
 from .errors import MissingRequirementsError
 from . import debug
+
+logger = logging.getLogger(__name__)
 
 try:
     from pyvirtualdisplay import Display
@@ -71,8 +74,8 @@ def get_browser(
         raise MissingRequirementsError('Install "Google Chrome" browser')
     if user_data_dir is None:
         user_data_dir = user_config_dir("g4f")
-    if user_data_dir and debug.logging:
-        print("Open browser with config dir:", user_data_dir)
+    if user_data_dir:
+        logger.debug("Open browser with config dir:", user_data_dir)
     if not options:
         options = ChromeOptions()
     if proxy:
@@ -116,8 +119,7 @@ def bypass_cloudflare(driver: WebDriver, url: str, timeout: int) -> None:
     """
     driver.get(url)
     if driver.find_element(By.TAG_NAME, "body").get_attribute("class") == "no-js":
-        if debug.logging:
-            print("Cloudflare protection detected:", url)
+        logger.debug("Cloudflare protection detected:", url)
 
         # Open website in a new tab
         element = driver.find_element(By.ID, "challenge-body-text")
@@ -146,8 +148,7 @@ def bypass_cloudflare(driver: WebDriver, url: str, timeout: int) -> None:
         except NoSuchElementException:
             ...
         except Exception as e:
-            if debug.logging:
-                print(f"Error bypassing Cloudflare: {str(e).splitlines()[0]}")
+            logger.debug(f"Error bypassing Cloudflare: {str(e).splitlines()[0]}")
         #driver.switch_to.default_content()
         driver.switch_to.window(window_handle)
         driver.execute_script("document.href = document.href;")
@@ -244,8 +245,7 @@ class WebDriverSession:
             try:
                 self.default_driver.close()
             except Exception as e:
-                if debug.logging:
-                    print(f"Error closing WebDriver: {str(e).splitlines()[0]}")
+                logger.debug(f"Error closing WebDriver: {str(e).splitlines()[0]}")
             finally:
                 self.default_driver.quit()
         if self.virtual_display:
