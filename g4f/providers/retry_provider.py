@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 
 from ..typing import Type, List, CreateResult, Messages, Iterator, AsyncResult
 from .types import BaseProvider, BaseRetryProvider, ProviderType
 from .. import debug
 from ..errors import RetryProviderError, RetryNoProviderError
+
+logger = logging.getLogger(__name__)
 
 class IterListProvider(BaseRetryProvider):
     def __init__(
@@ -51,8 +54,7 @@ class IterListProvider(BaseRetryProvider):
         for provider in self.get_providers(stream):
             self.last_provider = provider
             try:
-                if debug.logging:
-                    print(f"Using {provider.__name__} provider")
+                logger.debug(f"Using {provider.__name__} provider")
                 for token in provider.create_completion(model, messages, stream, **kwargs):
                     yield token
                     started = True
@@ -60,8 +62,7 @@ class IterListProvider(BaseRetryProvider):
                     return
             except Exception as e:
                 exceptions[provider.__name__] = e
-                if debug.logging:
-                    print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
+                logger.debug(f"{provider.__name__}: {e.__class__.__name__}: {e}")
                 if started:
                     raise e
 
@@ -88,16 +89,14 @@ class IterListProvider(BaseRetryProvider):
         for provider in self.get_providers(False):
             self.last_provider = provider
             try:
-                if debug.logging:
-                    print(f"Using {provider.__name__} provider")
+                logger.debug(f"Using {provider.__name__} provider")
                 return await asyncio.wait_for(
                     provider.create_async(model, messages, **kwargs),
                     timeout=kwargs.get("timeout", 60),
                 )
             except Exception as e:
                 exceptions[provider.__name__] = e
-                if debug.logging:
-                    print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
+                logger.debug(f"{provider.__name__}: {e.__class__.__name__}: {e}")
 
         raise_exceptions(exceptions)
 
@@ -120,8 +119,7 @@ class IterListProvider(BaseRetryProvider):
         for provider in self.get_providers(stream):
             self.last_provider = provider
             try:
-                if debug.logging:
-                    print(f"Using {provider.__name__} provider")
+                logger.debug(f"Using {provider.__name__} provider")
                 if not stream:
                     yield await provider.create_async(model, messages, **kwargs)
                 elif hasattr(provider, "create_async_generator"):
@@ -135,8 +133,7 @@ class IterListProvider(BaseRetryProvider):
                     return
             except Exception as e:
                 exceptions[provider.__name__] = e
-                if debug.logging:
-                    print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
+                logger.debug(f"{provider.__name__}: {e.__class__.__name__}: {e}")
                 if started:
                     raise e
 
@@ -187,8 +184,7 @@ class RetryProvider(IterListProvider):
             self.last_provider = provider
             for attempt in range(self.max_retries):
                 try:
-                    if debug.logging:
-                        print(f"Using {provider.__name__} provider (attempt {attempt + 1})")
+                    logger.debug(f"Using {provider.__name__} provider (attempt {attempt + 1})")
                     for token in provider.create_completion(model, messages, stream, **kwargs):
                         yield token
                         started = True
@@ -196,8 +192,7 @@ class RetryProvider(IterListProvider):
                         return
                 except Exception as e:
                     exceptions[provider.__name__] = e
-                    if debug.logging:
-                        print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
+                    logger.debug(f"{provider.__name__}: {e.__class__.__name__}: {e}")
                     if started:
                         raise e
             raise_exceptions(exceptions)
@@ -227,16 +222,14 @@ class RetryProvider(IterListProvider):
             self.last_provider = provider
             for attempt in range(self.max_retries):
                 try:
-                    if debug.logging:
-                        print(f"Using {provider.__name__} provider (attempt {attempt + 1})")
+                    logger.debug(f"Using {provider.__name__} provider (attempt {attempt + 1})")
                     return await asyncio.wait_for(
                         provider.create_async(model, messages, **kwargs),
                         timeout=kwargs.get("timeout", 60),
                     )
                 except Exception as e:
                     exceptions[provider.__name__] = e
-                    if debug.logging:
-                        print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
+                    logger.debug(f"{provider.__name__}: {e.__class__.__name__}: {e}")
             raise_exceptions(exceptions)
         else:
             return await super().create_async(model, messages, **kwargs)
@@ -273,8 +266,7 @@ class IterProvider(BaseRetryProvider):
                     return
             except Exception as e:
                 exceptions[provider.__name__] = e
-                if debug.logging:
-                    print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
+                logger.debug(f"{provider.__name__}: {e.__class__.__name__}: {e}")
                 if started:
                     raise e
         raise_exceptions(exceptions)
@@ -294,8 +286,7 @@ class IterProvider(BaseRetryProvider):
                 )
             except Exception as e:
                 exceptions[provider.__name__] = e
-                if debug.logging:
-                    print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
+                logger.debug(f"{provider.__name__}: {e.__class__.__name__}: {e}")
         raise_exceptions(exceptions)
 
     def iter_providers(self) -> Iterator[BaseProvider]:
@@ -305,8 +296,7 @@ class IterProvider(BaseRetryProvider):
                 provider = self.providers.pop()
                 used_provider.append(provider)
                 self.last_provider = provider
-                if debug.logging:
-                    print(f"Using {provider.__name__} provider")
+                logger.debug(f"Using {provider.__name__} provider")
                 yield provider
         finally:
             used_provider.reverse()
