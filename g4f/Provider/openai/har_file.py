@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
 import re
 import time
@@ -14,6 +15,8 @@ from .crypt import decrypt, encrypt
 from ...requests import StreamSession
 from ...cookies import get_cookies_dir
 from ... import debug
+
+logger = logging.getLogger(__name__)
 
 class NoValidHarFileError(Exception):
     ...
