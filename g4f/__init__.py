@@ -19,7 +19,8 @@ log_handler = logging.StreamHandler()
 log_handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
 logger.addHandler(log_handler)
 
-logger.setLevel(logging.ERROR)
+log_level = logging.DEBUG if debug.logging else logging.ERROR
+logger.setLevel(log_level)
 
 class ChatCompletion:
     @staticmethod
