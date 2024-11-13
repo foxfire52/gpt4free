@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import json
 import base64
+import logging
 import uuid
 
 from ..typing import AsyncResult, Messages, ImageType, Cookies
@@ -12,6 +13,8 @@ from ..image import ImageResponse, ImagePreview, EXTENSIONS_MAP, to_bytes, is_ac
 from ..requests import StreamSession, FormData, raise_for_status
 from .you.har_file import get_telemetry_ids
 from .. import debug
+
+logger = logging.getLogger(__name__)
 
 class You(AsyncGeneratorProvider, ProviderModelMixin):
     label = "You.com"
@@ -99,8 +102,7 @@ class You(AsyncGeneratorProvider, ProviderModelMixin):
                 "selectedChatMode": chat_mode,
             }
             if chat_mode == "custom":
-                if debug.logging:
-                    print(f"You model: {model}")
+                logger.debug(f"You model: {model}")
                 params["selectedAiModel"] = model.replace("-", "_")
 
             async with (session.post if chat_mode == "default" else session.get)(
@@ -191,8 +193,7 @@ class You(AsyncGeneratorProvider, ProviderModelMixin):
             cls._telemetry_ids = await get_telemetry_ids()
         user_uuid = str(uuid.uuid4())
         telemetry_id = cls._telemetry_ids.pop()
-        if debug.logging:
-            print(f"Use telemetry_id: {telemetry_id}")
+        logger.debug(f"Use telemetry_id: {telemetry_id}")
         async with client.post(
             "https://web.stytch.com/sdk/v1/passwords",
             headers={
