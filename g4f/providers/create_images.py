@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import asyncio
 
@@ -7,6 +8,8 @@ from .. import debug
 from ..typing import CreateResult, Messages
 from .types import BaseProvider, ProviderType
 from ..image import ImageResponse
+
+logger = logging.getLogger(__name__)
 
 system_message = """
 You can generate images, pictures, photos or img with the DALL-E 3 image generator.
@@ -106,8 +109,7 @@ class CreateImagesProvider(BaseProvider):
                             yield start
                         if self.include_placeholder:
                             yield placeholder
-                        if debug.logging:
-                            print(f"Create images with prompt: {prompt}")
+                        logger.debug(f"Create images with prompt: {prompt}")
                         yield from self.create_images(prompt)
                         if append:
                             yield append
@@ -145,8 +147,7 @@ class CreateImagesProvider(BaseProvider):
         placeholders = []
         for placeholder, prompt in matches:
             if placeholder not in placeholders:
-                if debug.logging:
-                    print(f"Create images with prompt: {prompt}")
+                logger.debug(f"Create images with prompt: {prompt}")
                 results.append(self.create_images_async(prompt))
                 placeholders.append(placeholder)
         results = await asyncio.gather(*results)
