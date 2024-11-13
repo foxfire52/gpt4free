@@ -62,8 +62,7 @@ def readHAR():
                             v_headers["openai-sentinel-proof-token"].split("gAAAAAB", 1)[-1].encode()
                         ).decode()))
                 except Exception as e:
-                    if debug.logging:
-                        print(f"Read proof token: {e}")
+                    logger.debug(f"Read proof token: {e}")
                 if arkPreURL in v['request']['url']:
                     chatArks.append(parseHAREntry(v))
                 elif v['request']['url'] == sessionUrl:
