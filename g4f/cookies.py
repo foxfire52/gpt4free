@@ -3,6 +3,9 @@ from __future__ import annotations
 import os
 import time
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     from platformdirs import user_config_dir
@@ -81,8 +84,8 @@ def load_cookies_from_browsers(domain_name: str, raise_requirements_error: bool 
     for cookie_fn in [_g4f, chrome, chromium, opera, opera_gx, brave, edge, vivaldi, firefox]:
         try:
             cookie_jar = cookie_fn(domain_name=domain_name)
-            if len(cookie_jar) and debug.logging:
-                print(f"Read cookies from {cookie_fn.__name__} for {domain_name}")
+            if len(cookie_jar):
+                logger.debug(f"Read cookies from {cookie_fn.__name__} for {domain_name}")
             for cookie in cookie_jar:
                 if cookie.name not in cookies:
                     if not cookie.expires or cookie.expires > time.time():
@@ -92,8 +95,7 @@ def load_cookies_from_browsers(domain_name: str, raise_requirements_error: bool 
         except BrowserCookieError:
             pass
         except Exception as e:
-            if debug.logging:
-                print(f"Error reading cookies from {cookie_fn.__name__} for {domain_name}: {e}")
+            logger.debug(f"Error reading cookies from {cookie_fn.__name__} for {domain_name}: {e}")
     return cookies
 
 def set_cookies_dir(dir: str) -> None:
@@ -129,8 +131,7 @@ def read_cookie_files(dirPath: str = None):
             except json.JSONDecodeError:
                 # Error: not a HAR file!
                 continue
-            if debug.logging:
-                print("Read .har file:", path)
+            logger.debug("Read .har file:", path)
             new_cookies = {}
             for v in harFile['log']['entries']:
                 domain = get_domain(v)
@@ -142,9 +143,8 @@ def read_cookie_files(dirPath: str = None):
                 if len(v_cookies) > 0:
                     CookiesConfig.cookies[domain] = v_cookies
                     new_cookies[domain] = len(v_cookies)
-            if debug.logging:
-                for domain, new_values in new_cookies.items():
-                    print(f"Cookies added: {new_values} from {domain}")
+            for domain, new_values in new_cookies.items():
+                logger.debug(f"Cookies added: {new_values} from {domain}")
     for path in cookieFiles:
         with open(path, 'rb') as file:
             try:
@@ -154,8 +154,7 @@ def read_cookie_files(dirPath: str = None):
                 continue
             if not isinstance(cookieFile, list):
                 continue
-            if debug.logging:
-                print("Read cookie file:", path)
+            logger.debug("Read cookie file:", path)
             new_cookies = {}
             for c in cookieFile:
                 if isinstance(c, dict) and "domain" in c:
@@ -163,8 +162,7 @@ def read_cookie_files(dirPath: str = None):
                         new_cookies[c["domain"]] = {}
                     new_cookies[c["domain"]][c["name"]] = c["value"]
             for domain, new_values in new_cookies.items():
-                if debug.logging:
-                    print(f"Cookies added: {len(new_values)} from {domain}")
+                logger.debug(f"Cookies added: {len(new_values)} from {domain}")
                 CookiesConfig.cookies[domain] = new_values
 
 def _g4f(domain_name: str) -> list:
