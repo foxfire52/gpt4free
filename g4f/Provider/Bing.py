@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 import json
+import logging
 import uuid
 import time
 import asyncio
@@ -19,6 +20,8 @@ from .bing.upload_image import upload_image
 from .bing.conversation import Conversation, create_conversation, delete_conversation
 from .BingCreateImages import BingCreateImages
 from .. import debug
+
+logger = logging.getLogger(__name__)
 
 class Tones:
     """
@@ -424,8 +427,7 @@ async def stream_generate(
                 max_retries -= 1
                 if max_retries < 1:
                     raise e
-                if debug.logging:
-                    print(f"Bing: Retry: {e}")
+                logger.debug(f"Bing: Retry: {e}")
                 headers = await create_headers()
                 await asyncio.sleep(sleep_retry)
                 continue
@@ -490,8 +492,7 @@ async def stream_generate(
                                     image_client = BingCreateImages(cookies, proxy, api_key)
                                     image_response = await image_client.create_async(prompt)
                                 except Exception as e:
-                                    if debug.logging:
-                                        print(f"Bing: Failed to create images: {e}")
+                                    logger.debug(f"Bing: Failed to create images: {e}")
                                     image_response = f"\nhttps://www.bing.com/images/create?q={parse.quote(prompt)}"
                             if response_txt.startswith(returned_text):
                                 new = response_txt[len(returned_text):]
@@ -510,8 +511,7 @@ async def stream_generate(
                                         raise RateLimitError(f"{result['value']}: Use other cookies or/and ip address")
                                     else:
                                         raise RuntimeError(f"{result['value']}: {result['message']}")
-                                if debug.logging:
-                                    print(f"Bing: Retry: {result['value']}: {result['message']}")
+                                logger.debug(f"Bing: Retry: {result['value']}: {result['message']}")
                                 headers = await create_headers()
                                 conversation = None
                                 await asyncio.sleep(sleep_retry)
