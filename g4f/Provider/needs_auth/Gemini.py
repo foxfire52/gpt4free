@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import json
+import logging
 import random
 import re
 
@@ -24,6 +25,8 @@ from ...requests.raise_for_status import raise_for_status
 from ...errors import MissingAuthError, MissingRequirementsError
 from ...image import ImageResponse, to_bytes
 from ...webdriver import get_browser, get_driver_cookies
+
+logger = logging.getLogger(__name__)
 
 REQUEST_HEADERS = {
     "authority": "gemini.google.com",
@@ -72,8 +75,7 @@ class Gemini(AsyncGeneratorProvider):
             user_data_dir = user_config_dir("g4f-nodriver")
         except:
             user_data_dir = None
-        if debug.logging:
-            print(f"Open nodriver with user_dir: {user_data_dir}")
+        logger.debug(f"Open nodriver with user_dir: {user_data_dir}")
         browser = await uc.start(
             user_data_dir=user_data_dir,
             browser_args=None if proxy is None else [f"--proxy-server={proxy}"],
