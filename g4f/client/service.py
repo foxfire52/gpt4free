@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Union
 
 from .. import debug, version
@@ -8,6 +9,8 @@ from ..models import Model, ModelUtils, default
 from ..Provider import ProviderUtils
 from ..providers.types import BaseRetryProvider, ProviderType
 from ..providers.retry_provider import IterProvider
+
+logger = logging.getLogger(__name__)
 
 def convert_to_provider(provider: str) -> ProviderType:
     if " " in provider:
@@ -84,11 +87,10 @@ def get_model_and_provider(model    : Union[Model, str],
     if not ignore_stream and not provider.supports_stream and stream:
         raise StreamNotSupportedError(f'{provider.__name__} does not support "stream" argument')
 
-    if debug.logging:
-        if model:
-            print(f'Using {provider.__name__} provider and {model} model')
-        else:
-            print(f'Using {provider.__name__} provider')
+    if model:
+        logger.debug(f'Using {provider.__name__} provider and {model} model')
+    else:
+        logger.debug(f'Using {provider.__name__} provider')
 
     debug.last_provider = provider
     debug.last_model = model
