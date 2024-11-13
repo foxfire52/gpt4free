@@ -80,15 +80,13 @@ async def get_telemetry_ids(proxy: str = None) -> list:
     try:
         return [await create_telemetry_id(proxy)]
     except NoValidHarFileError as e:
-        if debug.logging:
-            logger.error(e)
+        logger.debug(e)
 
     try:
         from nodriver import start
     except ImportError:
         raise MissingRequirementsError('Add .har file from you.com or install "nodriver" package | pip install -U nodriver')
-    if debug.logging:
-        logger.error('Getting telemetry_id for you.com with nodriver')
+    logger.debug('Getting telemetry_id for you.com with nodriver')
 
     browser = page = None
     try:
@@ -111,5 +109,4 @@ async def get_telemetry_ids(proxy: str = None) -> list:
             if browser is not None:
                 await browser.stop()
         except Exception as e:
-            if debug.logging:
-                logger.error(e)
+            logger.debug(e)
