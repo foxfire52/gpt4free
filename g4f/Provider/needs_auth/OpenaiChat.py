@@ -4,6 +4,7 @@ import asyncio
 import uuid
 import json
 import base64
+import logging
 import time
 from aiohttp import ClientWebSocketResponse
 from copy import copy
@@ -33,6 +34,8 @@ from ..helper import format_cookies
 from ..openai.har_file import getArkoseAndAccessToken, NoValidHarFileError
 from ..openai.proofofwork import generate_proof_token
 from ... import debug
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_HEADERS = {
     "accept": "*/*",
@@ -381,9 +384,8 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
                 image_request = await cls.upload_image(session, cls._headers, image, image_name) if image else None
             except Exception as e:
                 image_request = None
-                if debug.logging:
-                    print("OpenaiChat: Upload image failed")
-                    print(f"{e.__class__.__name__}: {e}")
+                logger.debug("OpenaiChat: Upload image failed")
+                logger.debug(f"{e.__class__.__name__}: {e}")
 
             model = cls.get_model(model)
             model = "text-davinci-002-render-sha" if model == "gpt-3.5-turbo" else model
@@ -426,8 +428,7 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
                         user_agent=cls._headers["user-agent"],
                         proofTokens=proofTokens
                     )
-                if debug.logging:
-                    print(
+                logger.debug(
                         'Arkose:', False if not need_arkose else arkose_token[:12]+"...",
                         'Proofofwork:', False if proofofwork is None else proofofwork[:12]+"...",
                     )
@@ -471,8 +472,7 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
                     cls._update_request_args(session)
                     if response.status == 403 and max_retries > 0:
                         max_retries -= 1
-                        if debug.logging:
-                            print(f"Retry: Error {response.status}: {await response.text()}")
+                        logger.debug(f"Retry: Error {response.status}: {await response.text()}")
                         await asyncio.sleep(5)
                         continue
                     await raise_for_status(response)
@@ -620,8 +620,7 @@ this.fetch = async (url, options) => {
             user_data_dir = user_config_dir("g4f-nodriver")
         except:
             user_data_dir = None
-        if debug.logging:
-            print(f"Open nodriver with user_dir: {user_data_dir}")
+        logger.debug(f"Open nodriver with user_dir: {user_data_dir}")
         browser = await uc.start(
             user_data_dir=user_data_dir,
             browser_args=None if proxy is None else [f"--proxy-server={proxy}"],
