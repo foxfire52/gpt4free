@@ -55,7 +55,7 @@ class Backend_Api(Api):
                 'function': self.serve_images,
                 'methods': ['GET']
             },
-            '/har': {
+            '/harcookie': {
                 'function': self.load_har,
                 'methods': ['POST']
             }
