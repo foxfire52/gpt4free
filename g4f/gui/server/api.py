@@ -11,7 +11,7 @@ from flask import send_from_directory
 
 from g4f import version, models
 from g4f import get_last_provider, ChatCompletion
-from g4f.cookies import CookiesConfig
+from g4f.cookies import get_cookies_dir
 from g4f.errors import VersionNotFoundError
 from g4f.typing import Cookies
 from g4f.image import ImagePreview, ImageResponse, is_accepted_format, extract_data_uri
@@ -31,8 +31,8 @@ def ensure_images_dir():
         os.makedirs(images_dir)
 
 def ensure_har_cookies_dir():
-    if not os.path.exists(CookiesConfig.cookies_dir):
-        os.makedirs(CookiesConfig.cookies_dir)
+    if not os.path.exists(get_cookies_dir()):
+        os.makedirs(get_cookies_dir())
 
 conversations: dict[dict[str, BaseConversation]] = {}
 
