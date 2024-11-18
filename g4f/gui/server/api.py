@@ -7,7 +7,7 @@ import asyncio
 import time
 from aiohttp import ClientSession
 from typing import Iterator, Optional
-from flask import send_from_directory
+from flask import request, send_from_directory
 from werkzeug.utils import secure_filename
 
 from g4f import version, models
