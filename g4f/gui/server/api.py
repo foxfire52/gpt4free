@@ -8,6 +8,7 @@ import time
 from aiohttp import ClientSession
 from typing import Iterator, Optional
 from flask import send_from_directory
+from werkzeug.utils import secure_filename
 
 from g4f import version, models
 from g4f import get_last_provider, ChatCompletion
@@ -113,9 +114,23 @@ class Api:
         ensure_images_dir()
         return send_from_directory(os.path.abspath(images_dir), name)
     
-    def load_har(self, name):
+    def load_har(self):
         ensure_har_cookies_dir()
-        return
+        
+        if 'file' not in request.files:
+            return 'No file uploaded', 500
+
+        har_file = request.files['file']
+        if har_file.filename == '':
+            return 'No file name', 500
+
+        file_ext = os.path.splitext(filename)[1]
+        if har_file and file_ext == '.har':
+            filename = secure_filename(file.filename)
+            file.save(get_cookies_dir(), filename)
+            return '', 200
+        else:
+            return '', 500
 
     def _prepare_conversation_kwargs(self, json_data: dict, kwargs: dict):
         model = json_data.get('model') or models.default
