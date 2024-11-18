@@ -1405,6 +1405,27 @@ function save_storage() {
     }
 }
 
+async function upload_harcookie() {
+    const url = `/har_cookie`;
+    const input = document.createElement("input");
+    input.type = "file";
+    //input.multiple = multiple;
+    input.click();
+
+    let file = input.files[0]
+
+    if (file !== null) {
+        const formData = new FormData();
+        formData.append('file', file);
+        body = formData;
+        response = await fetch(url, {
+            method: 'POST',
+            body: body
+        });
+    }
+}
+
+
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SpeechRecognition) {
     const mircoIcon = microLabel.querySelector("i");
