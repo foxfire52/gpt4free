@@ -54,6 +54,10 @@ class Backend_Api(Api):
             '/images/<path:name>': {
                 'function': self.serve_images,
                 'methods': ['GET']
+            },
+            '/har': {
+                'function': self.load_har,
+                'methods': ['POST']
             }
         }
 
