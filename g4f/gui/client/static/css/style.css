@@ -1024,6 +1024,10 @@ a:-webkit-any-link {
     color: var(--colour-3);
 }
 
+#input-har_cookies {
+    display: none;
+}
+
 .fade-in {
   display: block;
   animation: fade-in 0.5s ease-in forwards;
