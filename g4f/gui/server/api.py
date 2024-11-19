@@ -7,7 +7,7 @@ import asyncio
 import time
 from aiohttp import ClientSession
 from typing import Iterator, Optional
-from flask import request, send_from_directory
+from flask import abort, request, send_from_directory
 from werkzeug.utils import secure_filename
 
 from g4f import version, models
@@ -118,8 +118,10 @@ class Api:
         return send_from_directory(os.path.abspath(images_dir), name)
     
     def load_har(self):
-        ensure_har_cookies_dir()
-        
+        length = request.content_length
+        if length is not None and length > 50 * 1024 * 1024: #50MB max
+            abort(413)
+
         if 'file' not in request.files:
             return 'No file uploaded', 500
 
@@ -127,8 +129,10 @@ class Api:
         if har_file.filename == '':
             return 'No file name', 500
 
+        ensure_har_cookies_dir()
+
         file_ext = os.path.splitext(har_file.filename)[1]
-        if har_file and file_ext == '.har':
+        if har_file and file_ext in ['.txt', '.har']:
             filename = secure_filename(har_file.filename)
             har_file.save(os.path.join(get_cookies_dir(), filename))
             return '', 200
