@@ -1419,6 +1419,7 @@ function save_storage() {
 
 async function upload_harcookie(input) {
     const url = `/har_cookie`;
+    let btn = document.querySelector('.upload-done');
     let file = input.files[0]
 
     if (file !== null) {
@@ -1429,7 +1430,13 @@ async function upload_harcookie(input) {
             method: 'POST',
             body: body
         });
+        if (response.status == 200){
+            btn.classList.add('fa-check');
+        } else {
+            btn.classList.add('fa-cross);
+        }
     }
+    setTimeout(() => { btn.classList.remove('fa-check', 'fa-cross') }, 2000) 
 }
 
 
