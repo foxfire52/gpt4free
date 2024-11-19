@@ -1433,10 +1433,10 @@ async function upload_harcookie(input) {
         if (response.status == 200){
             btn.classList.add('fa-check');
         } else {
-            btn.classList.add('fa-cross');
+            btn.classList.add('fa-times');
         }
     }
-    setTimeout(() => { btn.classList.remove('fa-check', 'fa-cross') }, 2000) 
+    setTimeout(() => { btn.classList.remove('fa-check', 'fa-times') }, 2000) 
 }
 
 
