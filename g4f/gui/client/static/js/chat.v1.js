@@ -1420,7 +1420,7 @@ function save_storage() {
 async function upload_harcookie(input) {
     const url = `/har_cookie`;
     let btn = document.querySelector('.upload-done');
-    let file = input.files[0]
+    let file = input.files[0];
 
     if (file !== null) {
         const formData = new FormData();
@@ -1430,13 +1430,15 @@ async function upload_harcookie(input) {
             method: 'POST',
             body: body
         });
+        btn.classList.remove('fade-out', 'fa-check', 'fa-times');
+        btn.classList.add('fade-in');
         if (response.status == 200){
             btn.classList.add('fa-check');
         } else {
             btn.classList.add('fa-times');
         }
     }
-    setTimeout(() => { btn.classList.remove('fa-check', 'fa-times') }, 2000) 
+    setTimeout(() => { btn.classList.replace('fade-in','fade-out') }, 2000) 
 }
 
 
