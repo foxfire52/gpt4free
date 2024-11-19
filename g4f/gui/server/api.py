@@ -130,7 +130,7 @@ class Api:
         file_ext = os.path.splitext(har_file.filename)[1]
         if har_file and file_ext == '.har':
             filename = secure_filename(har_file.filename)
-            file.save(get_cookies_dir(), filename)
+            har_file.save(get_cookies_dir(), filename)
             return '', 200
         else:
             return '', 500
