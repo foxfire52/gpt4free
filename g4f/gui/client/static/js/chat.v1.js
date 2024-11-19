@@ -1438,7 +1438,7 @@ async function upload_harcookie(input) {
             btn.classList.add('fa-times');
         }
     }
-    setTimeout(() => { btn.classList.replace('fade-in','fade-out') }, 2000) 
+    setTimeout(() => { btn.classList.replace('fade-in', 'fade-out') }, 2000) 
 }
 
 
