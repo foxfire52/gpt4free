@@ -6,6 +6,7 @@ import uuid
 import asyncio
 import time
 from aiohttp import ClientSession
+from shutil import copyfileobj
 from typing import Iterator, Optional
 from flask import abort, request, send_from_directory
 from werkzeug.utils import secure_filename
@@ -136,10 +137,13 @@ class Api:
         file_ext = os.path.splitext(har_file.filename)[1]
         if har_file and file_ext in ['.txt', '.har']:
             filename = secure_filename(har_file.filename)
-            har_file.save(os.path.join(get_cookies_dir(), filename))
-            return '', 200
+            try:
+                copyfileobj(har_file, os.path.join(get_cookies_dir(), filename))
+                return 'Upload successful', 200
+            except Error as e:
+                return e, 500
         else:
-            return '', 500
+            return 'File type not supported', 500
 
     def _prepare_conversation_kwargs(self, json_data: dict, kwargs: dict):
         model = json_data.get('model') or models.default
