@@ -65,6 +65,7 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
     default_vision_model = "gpt-4o"
     fallback_models = ["auto", "gpt-4", "gpt-4o", "gpt-4o-mini", "gpt-4o-canmore", "o1-preview", "o1-mini"]
     vision_models = fallback_models
+    image_models = fallback_models
 
     _api_key: str = None
     _headers: dict = None
@@ -282,8 +283,11 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
         Raises:
             RuntimeError: If there'san error in downloading the image, including issues with the HTTP request or response.
         """
-        prompt = element["metadata"]["dalle"]["prompt"]
-        file_id = element["asset_pointer"].split("file-service://", 1)[1]
+        try:
+            prompt = element["metadata"]["dalle"]["prompt"]
+            file_id = element["asset_pointer"].split("file-service://", 1)[1]
+        except Exception as e:
+            raise RuntimeError(f"No Image: {e.__class__.__name__}: {e}")
         try:
             async with session.get(f"{cls.url}/backend-api/files/{file_id}/download", headers=headers) as response:
                 cls._update_request_args(session)
@@ -327,7 +331,7 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
         api_key: str = None,
         cookies: Cookies = None,
         auto_continue: bool = False,
-        history_disabled: bool = True,
+        history_disabled: bool = False,
         action: str = "next",
         conversation_id: str = None,
         conversation: Conversation = None,
@@ -380,9 +384,8 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
                 image_request = await cls.upload_image(session, cls._headers, image, image_name) if image else None
             except Exception as e:
                 image_request = None
-                if debug.logging:
-                    print("OpenaiChat: Upload image failed")
-                    print(f"{e.__class__.__name__}: {e}")
+                debug.log("OpenaiChat: Upload image failed")
+                debug.log(f"{e.__class__.__name__}: {e}")
             model = cls.get_model(model)
             if conversation is None:
                 conversation = Conversation(conversation_id, str(uuid.uuid4()) if parent_id is None else parent_id)
@@ -419,17 +422,10 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
                         user_agent=cls._headers["user-agent"],
                         proof_token=RequestConfig.proof_token
                     )
-                if debug.logging:
-                    print(
-                        'Arkose:', False if not need_arkose else RequestConfig.arkose_token[:12]+"...",
-                        'Proofofwork:', False if proofofwork is None else proofofwork[:12]+"...",
-                    )
-                ws = None
-                if need_arkose:
-                    async with session.post(f"{cls.url}/backend-api/register-websocket", headers=cls._headers) as response:
-                        wss_url = (await response.json()).get("wss_url")
-                    if wss_url:
-                        ws = await session.ws_connect(wss_url)    
+                [debug.log(text) for text in (
+                    f"Arkose: {'False' if not need_arkose else RequestConfig.arkose_token[:12]+'...'}",
+                    f"Proofofwork: {'False' if proofofwork is None else proofofwork[:12]+'...'}",
+                )]
                 data = {
                     "action": action,
                     "messages": None,
@@ -444,6 +440,7 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
                 }
                 if conversation.conversation_id is not None:
                     data["conversation_id"] = conversation.conversation_id
+                    debug.log(f"OpenaiChat: Use conversation: {conversation.conversation_id}")
                 if action != "continue":
                     messages = messages if conversation_id is None else [messages[-1]]
                     data["messages"] = cls.create_messages(messages, image_request)
@@ -468,12 +465,11 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
                     cls._update_request_args(session)
                     if response.status == 403 and max_retries > 0:
                         max_retries -= 1
-                        if debug.logging:
-                            print(f"Retry: Error {response.status}: {await response.text()}")
+                        debug.log(f"Retry: Error {response.status}: {await response.text()}")
                         await asyncio.sleep(5)
                         continue
                     await raise_for_status(response)
-                    async for chunk in cls.iter_messages_chunk(response.iter_lines(), session, conversation, ws):
+                    async for chunk in cls.iter_messages_chunk(response.iter_lines(), session, conversation):
                         if return_conversation:
                             history_disabled = False
                             return_conversation = False
@@ -488,44 +484,16 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
             if history_disabled and auto_continue:
                 await cls.delete_conversation(session, cls._headers, conversation.conversation_id)
 
-    @staticmethod
-    async def iter_messages_ws(ws: ClientWebSocketResponse, conversation_id: str, is_curl: bool) -> AsyncIterator:
-        while True:
-            if is_curl:
-                message = json.loads(ws.recv()[0])
-            else:
-                message = await ws.receive_json()
-            if message["conversation_id"] == conversation_id:
-                yield base64.b64decode(message["body"])
-
     @classmethod
     async def iter_messages_chunk(
         cls,
         messages: AsyncIterator,
         session: StreamSession,
         fields: Conversation,
-        ws = None
     ) -> AsyncIterator:
         async for message in messages:
-            if message.startswith(b'{"wss_url":'):
-                message = json.loads(message)
-                ws = await session.ws_connect(message["wss_url"]) if ws is None else ws
-                try:
-                    async for chunk in cls.iter_messages_chunk(
-                        cls.iter_messages_ws(ws, message["conversation_id"], hasattr(ws, "recv")),
-                        session, fields
-                    ):
-                        yield chunk
-                finally:
-                    await ws.aclose() if hasattr(ws, "aclose") else await ws.close()
-                break
             async for chunk in cls.iter_messages_line(session, message, fields):
-                if fields.finish_reason is not None:
-                    break
-                else:
-                    yield chunk
-            if fields.finish_reason is not None:
-                break
+                yield chunk
 
     @classmethod
     async def iter_messages_line(cls, session: StreamSession, line: bytes, fields: Conversation) -> AsyncIterator:
@@ -541,9 +509,9 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
             return
         if isinstance(line, dict) and "v" in line:
             v = line.get("v")
-            if isinstance(v, str):
+            if isinstance(v, str) and fields.is_recipient:
                 yield v
-            elif isinstance(v, list):
+            elif isinstance(v, list) and fields.is_recipient:
                 for m in v:
                     if m.get("p") == "/message/content/parts/0":
                         yield m.get("v")
@@ -553,20 +521,22 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
             elif isinstance(v, dict):
                 if fields.conversation_id is None:
                     fields.conversation_id = v.get("conversation_id")
-                fields.message_id = v.get("message", {}).get("id")
-                c = v.get("message", {}).get("content", {})
-                if c.get("content_type") == "multimodal_text":
-                    generated_images = []
-                    for element in c.get("parts"):
-                        if element.get("content_type") == "image_asset_pointer":
-                            generated_images.append(
-                                cls.get_generated_image(session, cls._headers, element)
-                            )
-                        elif element.get("content_type") == "text":
-                            for part in element.get("parts", []):
-                                yield part
-                    for image_response in await asyncio.gather(*generated_images):
-                        yield image_response
+                    debug.log(f"OpenaiChat: New conversation: {fields.conversation_id}")
+                m = v.get("message", {})
+                fields.is_recipient = m.get("recipient") == "all"
+                if fields.is_recipient:
+                    c = m.get("content", {})
+                    if c.get("content_type") == "multimodal_text":
+                        generated_images = []
+                        for element in c.get("parts"):
+                            if isinstance(element, dict) and element.get("content_type") == "image_asset_pointer":
+                                generated_images.append(
+                                    cls.get_generated_image(session, cls._headers, element)
+                                )
+                        for image_response in await asyncio.gather(*generated_images):
+                            yield image_response
+                    if m.get("author", {}).get("role") == "assistant":
+                        fields.message_id = v.get("message", {}).get("id")
             return
         if "error" in line and line.get("error"):
             raise RuntimeError(line.get("error"))
@@ -579,8 +549,7 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
             user_data_dir = user_config_dir("g4f-nodriver")
         else:
             user_data_dir = None
-        if debug.logging:
-            print(f"Open nodriver with user_dir: {user_data_dir}")
+        debug.log(f"Open nodriver with user_dir: {user_data_dir}")
         browser = await nodriver.start(
             user_data_dir=user_data_dir,
             browser_args=None if proxy is None else [f"--proxy-server={proxy}"],
@@ -645,7 +614,7 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
         cls._headers = cls.get_default_headers() if headers is None else headers
         if user_agent is not None:
             cls._headers["user-agent"] = user_agent
-        cls._cookies = {} if cookies is None else {k: v for k, v in cookies.items() if k != "access_token"}
+        cls._cookies = {} if cookies is None else cookies
         cls._update_cookie_header()
 
     @classmethod
@@ -664,8 +633,6 @@ class OpenaiChat(AsyncGeneratorProvider, ProviderModelMixin):
     @classmethod
     def _update_cookie_header(cls):
         cls._headers["cookie"] = format_cookies(cls._cookies)
-        if "oai-did" in cls._cookies:
-            cls._headers["oai-device-id"] = cls._cookies["oai-did"]
 
 class Conversation(BaseConversation):
     """
@@ -675,6 +642,7 @@ class Conversation(BaseConversation):
         self.conversation_id = conversation_id
         self.message_id = message_id
         self.finish_reason = finish_reason
+        self.is_recipient = False
 
 class Response():
     """

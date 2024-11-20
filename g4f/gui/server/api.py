@@ -20,6 +20,7 @@ from g4f.requests.aiohttp import get_connector
 from g4f.Provider import ProviderType, __providers__, __map__
 from g4f.providers.base_provider import ProviderModelMixin, FinishReason
 from g4f.providers.conversation import BaseConversation
+from g4f import debug
 
 logger = logging.getLogger(__name__)
 
@@ -43,18 +44,19 @@ class Api:
         return models._all_models
 
     @staticmethod
-    def get_provider_models(provider: str) -> list[dict]:
+    def get_provider_models(provider: str, api_key: str = None) -> list[dict]:
         if provider in __map__:
             provider: ProviderType = __map__[provider]
             if issubclass(provider, ProviderModelMixin):
+                models = provider.get_models() if api_key is None else provider.get_models(api_key=api_key)
                 return [
                     {
                         "model": model,
                         "default": model == provider.default_model,
                         "vision": getattr(provider, "default_vision_model", None) == model or model in getattr(provider, "vision_models", []),
-                        "image": model in getattr(provider, "image_models", []),
+                        "image": False if provider.image_models is None else model in provider.image_models,
                     }
-                    for model in provider.get_models()
+                    for model in models
                 ]
         return []
 
@@ -168,6 +170,13 @@ class Api:
         }
 
     def _create_response_stream(self, kwargs: dict, conversation_id: str, provider: str) -> Iterator:
+        if debug.logging:
+            debug.logs = []
+            print_callback = debug.log_handler
+            def log_handler(text: str):
+                debug.logs.append(text)
+                print_callback(text)
+            debug.log_handler = log_handler
         try:
             result = ChatCompletion.create(**kwargs)
             first = True
@@ -196,6 +205,10 @@ class Api:
                         yield self._format_json("content", str(ImageResponse(images, chunk.alt)))
                     elif not isinstance(chunk, FinishReason):
                         yield self._format_json("content", str(chunk))
+                    if debug.logs:
+                        for log in debug.logs:
+                            yield self._format_json("log", str(log))
+                        debug.logs = []
         except Exception as e:
             logger.exception(e)
             yield self._format_json('error', get_error_message(e))

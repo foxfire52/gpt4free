@@ -15,18 +15,15 @@ try:
     has_nodriver = True
 except ImportError:
     has_nodriver = False
-try:
-    from platformdirs import user_config_dir
-    has_platformdirs = True
-except ImportError:
-    has_platformdirs = False
 
 from .base_provider import AbstractProvider, BaseConversation
 from .helper import format_prompt
 from ..typing import CreateResult, Messages, ImageType
 from ..errors import MissingRequirementsError
 from ..requests.raise_for_status import raise_for_status
-from ..image import to_bytes, is_accepted_format
+from ..providers.helper import format_cookies
+from ..requests import get_nodriver
+from ..image import ImageResponse, to_bytes, is_accepted_format
 from .. import debug
 
 class Conversation(BaseConversation):
@@ -74,18 +71,21 @@ class Copilot(AbstractProvider):
                 access_token, cookies = asyncio.run(cls.get_access_token_and_cookies(proxy))
             else:
                 access_token = conversation.access_token
-            websocket_url = f"{websocket_url}&acessToken={quote(access_token)}"
-            headers = {"Authorization": f"Bearer {access_token}"}
+            debug.log(f"Copilot: Access token: {access_token[:7]}...{access_token[-5:]}")
+            debug.log(f"Copilot: Cookies: {';'.join([*cookies])}")
+            websocket_url = f"{websocket_url}&accessToken={quote(access_token)}"
+            headers = {"authorization": f"Bearer {access_token}", "cookie": format_cookies(cookies)}
     
         with Session(
             timeout=timeout,
             proxy=proxy,
             impersonate="chrome",
             headers=headers,
-            cookies=cookies
+            cookies=cookies,
         ) as session:
-            response = session.get(f"{cls.url}/")
+            response = session.get("https://copilot.microsoft.com/c/api/user")
             raise_for_status(response)
+            debug.log(f"Copilot: User: {response.json().get('firstName', 'null')}")
             if conversation is None:
                 response = session.post(cls.conversation_url)
                 raise_for_status(response)
@@ -93,13 +93,11 @@ class Copilot(AbstractProvider):
                 if return_conversation:
                     yield Conversation(conversation_id, session.cookies.jar, access_token)
                 prompt = format_prompt(messages)
-                if debug.logging:
-                    print(f"Copilot: Created conversation: {conversation_id}")
+                debug.log(f"Copilot: Created conversation: {conversation_id}")
             else:
                 conversation_id = conversation.conversation_id
                 prompt = messages[-1]["content"]
-                if debug.logging:
-                    print(f"Copilot: Use conversation: {conversation_id}")
+                debug.log(f"Copilot: Use conversation: {conversation_id}")
 
             images = []
             if image is not None:
@@ -125,6 +123,7 @@ class Copilot(AbstractProvider):
 
             is_started = False
             msg = None
+            image_prompt: str = None
             while True:
                 try:
                     msg = wss.recv()[0]
@@ -132,23 +131,20 @@ class Copilot(AbstractProvider):
                 except:
                     break
                 if msg.get("event") == "appendText":
+                    is_started = True
                     yield msg.get("text")
-                elif msg.get("event") in ["done", "partCompleted"]:
+                elif msg.get("event") == "generatingImage":
+                    image_prompt = msg.get("prompt")
+                elif msg.get("event") == "imageGenerated":
+                    yield ImageResponse(msg.get("url"), image_prompt, {"preview": msg.get("thumbnailUrl")})
+                elif msg.get("event") == "done":
                     break
             if not is_started:
                 raise RuntimeError(f"Last message: {msg}")
 
     @classmethod
     async def get_access_token_and_cookies(cls, proxy: str = None):
-        if not has_nodriver:
-            raise MissingRequirementsError('Install "nodriver" package | pip install -U nodriver')
-        user_data_dir = user_config_dir("g4f-nodriver") if has_platformdirs else None
-        if debug.logging:
-            print(f"Copilot: Open nodriver with user_dir: {user_data_dir}")
-        browser = await nodriver.start(
-            user_data_dir=user_data_dir,
-            browser_args=None if proxy is None else [f"--proxy-server={proxy}"],
-        )
+        browser = await get_nodriver(proxy=proxy)
         page = await browser.get(cls.url)
         access_token = None
         while access_token is None:
@@ -165,7 +161,7 @@ class Copilot(AbstractProvider):
                 })()
             """)
             if access_token is None:
-                asyncio.sleep(1)
+                await asyncio.sleep(1)
         cookies = {}
         for c in await page.send(nodriver.cdp.network.get_cookies([cls.url])):
             cookies[c.name] = c.value

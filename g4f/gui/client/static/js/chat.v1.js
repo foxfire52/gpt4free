@@ -19,13 +19,15 @@ const systemPrompt      = document.getElementById("systemPrompt");
 const settings          = document.querySelector(".settings");
 const chat              = document.querySelector(".conversation");
 const album             = document.querySelector(".images");
+const log_storage       = document.querySelector(".log");
 
 const optionElements = document.querySelectorAll(".settings input, .settings textarea, #model, #model2, #provider")
 
 let provider_storage = {};
 let message_storage = {};
 let controller_storage = {};
-let content_storage = {}
+let content_storage = {};
+let error_storage = {};
 
 messageInput.addEventListener("blur", () => {
     window.scrollTo(0, 0);
@@ -213,7 +215,6 @@ const register_message_buttons = async () => {
                 const message_el = el.parentElement.parentElement.parentElement;
                 el.classList.add("clicked");
                 setTimeout(() => el.classList.remove("clicked"), 1000);
-                await hide_message(window.conversation_id, message_el.dataset.index);
                 await ask_gpt(message_el.dataset.index, get_message_id());
             })
         }
@@ -256,14 +257,14 @@ const delete_conversations = async () => {
 const handle_ask = async () => {
     messageInput.style.height = "82px";
     messageInput.focus();
-    window.scrollTo(0, 0);
+    await scroll_to_bottom();
 
     let message = messageInput.value;
     if (message.length <= 0) {
         return;
     }
     messageInput.value = "";
-    count_input()
+    await count_input()
     await add_conversation(window.conversation_id, message);
 
     if ("text" in fileInput.dataset) {
@@ -315,6 +316,7 @@ async function remove_cancel_button() {
 
 regenerate.addEventListener("click", async () => {
     regenerate.classList.add("regenerate-hidden");
+    setTimeout(()=>regenerate.classList.remove("regenerate-hidden"), 3000);
     stop_generating.classList.remove("stop_generating-hidden");
     await hide_message(window.conversation_id);
     await ask_gpt(-1, get_message_id());
@@ -381,12 +383,12 @@ const prepare_messages = (messages, message_index = -1) => {
     return new_messages;
 }
 
-async function add_message_chunk(message, message_index) {
-    content_map = content_storage[message_index];
+async function add_message_chunk(message, message_id) {
+    content_map = content_storage[message_id];
     if (message.type == "conversation") {
         console.info("Conversation used:", message.conversation)
     } else if (message.type == "provider") {
-        provider_storage[message_index] = message.provider;
+        provider_storage[message_id] = message.provider;
         content_map.content.querySelector('.provider').innerHTML = `
             <a href="${message.provider.url}" target="_blank">
                 ${message.provider.label ? message.provider.label : message.provider.name}
@@ -396,14 +398,17 @@ async function add_message_chunk(message, message_index) {
     } else if (message.type == "message") {
         console.error(message.message)
     } else if (message.type == "error") {
-        window.error = message.error
+        error_storage[message_id] = message.error
         console.error(message.error);
         content_map.inner.innerHTML += `<p><strong>An error occured:</strong> ${message.error}</p>`;
+        let p = document.createElement("p");
+        p.innerText = message.error;
+        log_storage.appendChild(p);
     } else if (message.type == "preview") {
         content_map.inner.innerHTML = markdown_render(message.preview);
     } else if (message.type == "content") {
-        message_storage[message_index] += message.content;
-        html = markdown_render(message_storage[message_index]);
+        message_storage[message_id] += message.content;
+        html = markdown_render(message_storage[message_id]);
         let lastElement, lastIndex = null;
         for (element of ['</p>', '</code></pre>', '</p>\n</li>\n</ol>', '</li>\n</ol>', '</li>\n</ul>']) {
             const index = html.lastIndexOf(element)
@@ -416,8 +421,12 @@ async function add_message_chunk(message, message_index) {
             html = html.substring(0, lastIndex) + '<span class="cursor"></span>' + lastElement;
         }
         content_map.inner.innerHTML = html;
-        content_map.count.innerText = count_words_and_tokens(message_storage[message_index], provider_storage[message_index]?.model);
+        content_map.count.innerText = count_words_and_tokens(message_storage[message_id], provider_storage[message_id]?.model);
         highlight(content_map.inner);
+    } else if (message.type == "log") {
+        let p = document.createElement("p");
+        p.innerText = message.log;
+        log_storage.appendChild(p);
     }
     window.scrollTo(0, 0);
     if (message_box.scrollTop >= message_box.scrollHeight - message_box.clientHeight - 100) {
@@ -444,7 +453,7 @@ const ask_gpt = async (message_index = -1, message_id) => {
     let total_messages = messages.length;
     messages = prepare_messages(messages, message_index);
     message_index = total_messages
-    message_storage[message_index] = "";
+    message_storage[message_id] = "";
     stop_generating.classList.remove(".stop_generating-hidden");
 
     message_box.scrollTop = message_box.scrollHeight;
@@ -468,29 +477,22 @@ const ask_gpt = async (message_index = -1, message_id) => {
         </div>
     `;
 
-    controller_storage[message_index] = new AbortController();
-    let error = false;
+    controller_storage[message_id] = new AbortController();
 
     let content_el = document.getElementById(`gpt_${message_id}`)
-    let content_map = content_storage[message_index] = {
+    let content_map = content_storage[message_id] = {
         content: content_el,
         inner: content_el.querySelector('.content_inner'),
         count: content_el.querySelector('.count'),
     }
 
-    message_box.scrollTop = message_box.scrollHeight;
-    window.scrollTo(0, 0);
+    await scroll_to_bottom();
     try {
         const input = imageInput && imageInput.files.length > 0 ? imageInput : cameraInput;
         const file = input && input.files.length > 0 ? input.files[0] : null;
         const provider = providerSelect.options[providerSelect.selectedIndex].value;
         const auto_continue = document.getElementById("auto_continue")?.checked;
-        let api_key = null;
-        if (provider) {
-            api_key = document.getElementById(`${provider}-api_key`)?.value || null;
-            if (api_key == null)
-                api_key = document.querySelector(`.${provider}-api_key`)?.value || null;
-        }
+        let api_key = get_api_key_by_provider(provider);
         await api("conversation", {
             id: message_id,
             conversation_id: window.conversation_id,
@@ -499,10 +501,10 @@ const ask_gpt = async (message_index = -1, message_id) => {
             provider: provider,
             messages: messages,
             auto_continue: auto_continue,
-            api_key: api_key
-        }, file, message_index);
-        if (!error) {
-            html = markdown_render(message_storage[message_index]);
+            api_key: api_key,
+        }, file, message_id);
+        if (!error_storage[message_id]) {
+            html = markdown_render(message_storage[message_id]);
             content_map.inner.innerHTML = html;
             highlight(content_map.inner);
 
@@ -513,25 +515,30 @@ const ask_gpt = async (message_index = -1, message_id) => {
     } catch (e) {
         console.error(e);
         if (e.name != "AbortError") {
-            error = true;
+            error_storage[message_id] = true;
             content_map.inner.innerHTML += `<p><strong>An error occured:</strong> ${e}</p>`;
         }
     }
-    delete controller_storage[message_index];
-    if (!error && message_storage[message_index]) {
-        const message_provider = message_index in provider_storage ? provider_storage[message_index] : null;
-        await add_message(window.conversation_id, "assistant", message_storage[message_index], message_provider);
+    delete controller_storage[message_id];
+    if (!error_storage[message_id] && message_storage[message_id]) {
+        const message_provider = message_id in provider_storage ? provider_storage[message_id] : null;
+        await add_message(window.conversation_id, "assistant", message_storage[message_id], message_provider);
         await safe_load_conversation(window.conversation_id);
     } else {
         let cursorDiv = message_box.querySelector(".cursor");
         if (cursorDiv) cursorDiv.parentNode.removeChild(cursorDiv);
     }
-    window.scrollTo(0, 0);
-    message_box.scrollTop = message_box.scrollHeight;
+    await scroll_to_bottom();
     await remove_cancel_button();
     await register_message_buttons();
     await load_conversations();
+    regenerate.classList.remove("regenerate-hidden");
 };
+
+async function scroll_to_bottom() {
+    window.scrollTo(0, 0);
+    message_box.scrollTop = message_box.scrollHeight;
+}
 
 const clear_conversations = async () => {
     const elements = box_conversations.childNodes;
@@ -631,6 +638,7 @@ const set_conversation = async (conversation_id) => {
     await load_conversation(conversation_id);
     load_conversations();
     hide_sidebar();
+    log_storage.classList.add("hidden");
 };
 
 const new_conversation = async () => {
@@ -643,6 +651,7 @@ const new_conversation = async () => {
     }
     load_conversations();
     hide_sidebar();
+    log_storage.classList.add("hidden");
     say_hello();
 };
 
@@ -941,6 +950,7 @@ function open_settings() {
         settings.classList.add("hidden");
         chat.classList.remove("hidden");
     }
+    log_storage.classList.add("hidden");
 }
 
 function open_album() {
@@ -1141,7 +1151,7 @@ async function on_api() {
             evt.preventDefault();
             console.log("pressed enter");
             prompt_lock = true;
-            setTimeout(()=>prompt_lock=false, 3);
+            setTimeout(()=>prompt_lock=false, 3000);
             await handle_ask();
         } else {
             messageInput.style.removeProperty("height");
@@ -1152,7 +1162,7 @@ async function on_api() {
         console.log("clicked send");
         if (prompt_lock) return;
         prompt_lock = true;
-        setTimeout(()=>prompt_lock=false, 3);
+        setTimeout(()=>prompt_lock=false, 3000);
         await handle_ask();
     });
     messageInput.focus();
@@ -1174,8 +1184,8 @@ async function on_api() {
         providerSelect.appendChild(option);
     })
 
-    await load_provider_models(appStorage.getItem("provider"));
     await load_settings_storage()
+    await load_provider_models(appStorage.getItem("provider"));
 
     const hide_systemPrompt = document.getElementById("hide-systemPrompt")
     const slide_systemPrompt_icon = document.querySelector(".slide-systemPrompt i");
@@ -1301,7 +1311,7 @@ function get_selected_model() {
     }
 }
 
-async function api(ressource, args=null, file=null, message_index=null) {
+async function api(ressource, args=null, file=null, message_id=null) {
     if (window?.pywebview) {
         if (args !== null) {
             if (ressource == "models") {
@@ -1311,15 +1321,19 @@ async function api(ressource, args=null, file=null, message_index=null) {
         }
         return pywebview.api[`get_${ressource}`]();
     }
+    let api_key;
     if (ressource == "models" && args) {
+        api_key = get_api_key_by_provider(args);
         ressource = `${ressource}/${args}`;
     }
     const url = `/backend-api/v2/${ressource}`;
+    const headers = {};
+    if (api_key) {
+        headers.authorization = `Bearer ${api_key}`;
+    }
     if (ressource == "conversation") {
         let body = JSON.stringify(args);
-        const headers = {
-            accept: 'text/event-stream'
-        }
+        headers.accept = 'text/event-stream';
         if (file !== null) {
             const formData = new FormData();
             formData.append('file', file);
@@ -1330,17 +1344,17 @@ async function api(ressource, args=null, file=null, message_index=null) {
         }
         response = await fetch(url, {
             method: 'POST',
-            signal: controller_storage[message_index].signal,
+            signal: controller_storage[message_id].signal,
             headers: headers,
-            body: body
+            body: body,
         });
-        return read_response(response, message_index);
+        return read_response(response, message_id);
     }
-    response = await fetch(url);
+    response = await fetch(url, {headers: headers});
     return await response.json();
 }
 
-async function read_response(response, message_index) {
+async function read_response(response, message_id) {
     const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
     let buffer = ""
     while (true) {
@@ -1353,13 +1367,23 @@ async function read_response(response, message_index) {
                 continue;
             }
             try {
-                add_message_chunk(JSON.parse(buffer + line), message_index);
+                add_message_chunk(JSON.parse(buffer + line), message_id);
                 buffer = "";
             } catch {
                 buffer += line
             }
         }
     }
+}
+
+function get_api_key_by_provider(provider) {
+    let api_key = null;
+    if (provider) {
+        api_key = document.getElementById(`${provider}-api_key`)?.value || null;
+        if (api_key == null)
+            api_key = document.querySelector(`.${provider}-api_key`)?.value || null;
+    }
+    return api_key;
 }
 
 async function load_provider_models(providerIndex=null) {
@@ -1497,3 +1521,9 @@ if (SpeechRecognition) {
         }
     });
 }
+
+document.getElementById("showLog").addEventListener("click", ()=> {
+    log_storage.classList.remove("hidden");
+    settings.classList.add("hidden");
+    log_storage.scrollTop = log_storage.scrollHeight;
+});

@@ -137,6 +137,10 @@
                 <textarea id="BingCreateImages-api_key" name="BingCreateImages[api_key]" placeholder="&quot;_U&quot; cookie"></textarea>
             </div>
             <div class="field box">
+                <label for="Cerebras-api_key" class="label" title="">Cerebras Inference:</label>
+                <textarea id="Cerebras-api_key" name="Cerebras[api_key]" placeholder="api_key"></textarea>
+            </div>
+            <div class="field box">
                 <label for="DeepInfra-api_key" class="label" title="">DeepInfra:</label>
                 <textarea id="DeepInfra-api_key" name="DeepInfra[api_key]" class="DeepInfraImage-api_key" placeholder="api_key"></textarea>
             </div>
@@ -150,7 +154,7 @@
             </div>
             <div class="field box">
                 <label for="HuggingFace-api_key" class="label" title="">HuggingFace:</label>
-                <textarea id="HuggingFace-api_key" name="HuggingFace[api_key]" placeholder="api_key"></textarea>
+                <textarea id="HuggingFace-api_key" name="HuggingFace[api_key]" class="HuggingFace2-api_key" placeholder="api_key"></textarea>
             </div>
             <div class="field box">
                 <label for="Openai-api_key" class="label" title="">OpenAI API:</label>
@@ -178,6 +182,10 @@
                     <i class="fa-solid fa-download"></i>
                     <a href="" onclick="return false;">Export Conversations</a>
                 </button>
+                <button id="showLog">
+                    <i class="fa-solid fa-terminal"></i>
+                    <a href="" onclick="return false;">Show log</a>
+                </button>
             </div>
         </div>
         <div class="conversation">
@@ -196,7 +204,7 @@
                 <div class="stop_generating stop_generating-hidden">
                     <button id="cancelButton">
                         <span>Stop Generating</span>
-                        <i class="fa-regular fa-stop"></i>
+                        <i class="fa-solid fa-stop"></i>
                     </button>
                 </div>
                 <div class="regenerate">
@@ -265,6 +273,7 @@
                 </div>
             </div>
         </div>
+        <div class="log hidden"></div>
     </div>
     <div class="mobile-sidebar">
         <i class="fa-solid fa-bars"></i>
