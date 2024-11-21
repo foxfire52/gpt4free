@@ -6,7 +6,7 @@ import uuid
 import asyncio
 import time
 from aiohttp import ClientSession
-from shutil import copyfileobj
+from shutil import copyfileobj, shutil.Error
 from typing import Iterator, Optional
 from flask import abort, request, send_from_directory
 from werkzeug.utils import secure_filename
@@ -135,15 +135,22 @@ class Api:
         ensure_har_cookies_dir()
 
         file_ext = os.path.splitext(har_file.filename)[1]
-        if har_file and file_ext in ['.txt', '.har']:
-            filename = secure_filename(har_file.filename)
-            try:
-                copyfileobj(har_file, os.path.join(get_cookies_dir(), filename))
-                return 'Upload successful', 200
-            except Error as e:
-                return e, 500
-        else:
+        if file_ext not in ['.txt', '.har']:
             return 'File type not supported', 500
+
+        filename = secure_filename(har_file.filename)
+        try:
+            dst = open(os.path.join(get_cookies_dir(), filename), 'wxb')
+            copyfileobj(har_file, dst):
+            return 'Upload successful', 200
+        except FileNotFoundError:
+            return 'File Already exists', 500
+        except shutil.Error as e:
+            return str(e), 500
+        finally:
+            dst.close()
+
+        return 'Internal Error', 500
 
     def _prepare_conversation_kwargs(self, json_data: dict, kwargs: dict):
         model = json_data.get('model') or models.default
