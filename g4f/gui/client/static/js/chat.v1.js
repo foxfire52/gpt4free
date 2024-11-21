@@ -1441,6 +1441,27 @@ function save_storage() {
     }
 }
 
+async function cmd_harcookie(cmd) {
+    let btn = document.querySelector('.clear-done');
+    let data = JSON.stringify({'cmd': cmd});
+
+    response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: data
+    });
+    btn.classList.remove('fade-out', 'fa-check', 'fa-times');
+    btn.classList.add('fade-in');
+    if (response.status == 200){
+        btn.classList.add('fa-check');
+    } else {
+        btn.classList.add('fa-times');
+    }
+    setTimeout(() => { btn.classList.replace('fade-in', 'fade-out') }, 2000) 
+}
+
 async function upload_harcookie(input) {
     const url = `/har_cookie`;
     let btn = document.querySelector('.upload-done');
