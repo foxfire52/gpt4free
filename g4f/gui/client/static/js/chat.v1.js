@@ -1452,11 +1452,12 @@ async function btn_update(btn, response) {
     setTimeout(() => { btn.classList.replace('fade-in', 'fade-out') }, 2000)
 }
 
-async function cmd_harcookie(cmd) {
-    let btn = document.querySelector('.clear-done');
+async function cmd_harcookie(elmt, cmd) {
+    const url = `/har_cookie`;
+    let btn = elmt.querySelector('.btn-done');
     let data = JSON.stringify({'cmd': cmd});
 
-    response = await fetch(url, {
+    let response = await fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1468,16 +1469,16 @@ async function cmd_harcookie(cmd) {
 
 async function upload_harcookie(input) {
     const url = `/har_cookie`;
-    let btn = document.querySelector('.upload-done');
+    let btn = input.parentElement.querySelector('.btn-done');
     let file = input.files[0];
 
     if (file !== null) {
         const formData = new FormData();
         formData.append('file', file);
-        body = formData;
-        response = await fetch(url, {
+
+        let response = await fetch(url, {
             method: 'POST',
-            body: body
+            body: formData
         });
         await btn_update(btn, response);
     }
