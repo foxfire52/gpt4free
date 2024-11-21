@@ -126,6 +126,7 @@ class Api:
             for filename in os.listdir(get_cookies_dir()):
                 if is_allowed_cookie_ext(filename):
                     os.remove(os.path.join(get_cookies_dir(), filename))
+            return 'All har/cookies deleted', 200
 
     def load_harcookie(self):
         length = request.content_length
