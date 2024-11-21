@@ -119,8 +119,12 @@ class Api:
     def serve_images(self, name):
         ensure_images_dir()
         return send_from_directory(os.path.abspath(images_dir), name)
-    
-    def load_har(self):
+
+    def cmd_harcookie(self):
+        json = request.get_json()
+        if json and json.cmd = 'clear':
+
+    def load_harcookie(self):
         length = request.content_length
         if length is not None and length > 50 * 1024 * 1024: #50MB max
             abort(413)
