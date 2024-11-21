@@ -56,8 +56,8 @@ class Backend_Api(Api):
                 'methods': ['GET']
             },
             '/har_cookie': {
-                'function': self.load_har,
-                'methods': ['POST']
+                'function': self.har_cookie,
+                'methods': ['GET', 'POST']
             }
         }
 
@@ -96,6 +96,12 @@ class Backend_Api(Api):
             self._create_response_stream(kwargs, json_data.get("conversation_id"), json_data.get("provider")),
             mimetype='text/event-stream'
         )
+
+    def har_cookie(self):
+        if request.method == 'POST':
+            self.load_harcookie()
+        else if request.method == 'GET':
+            self.get_harcookie()
 
     def get_provider_models(self, provider: str):
         api_key = None if request.authorization is None else request.authorization.token
