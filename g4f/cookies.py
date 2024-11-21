@@ -50,6 +50,8 @@ class CookiesConfig():
     cookies: Dict[str, Cookies] = {}
     cookies_dir: str = "./har_and_cookies"
 
+ALLOWED_EXTENSIONS = {'txt', 'har'}
+
 DOMAINS = [
     ".bing.com",
     ".meta.ai",
