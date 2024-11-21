@@ -143,14 +143,14 @@ class Api:
             dst = open(os.path.join(get_cookies_dir(), filename), 'wxb')
             copyfileobj(har_file, dst):
             return 'Upload successful', 200
-        except FileNotFoundError:
-            return 'File Already exists', 500
+        except FileExistsError:
+            return 'File already exists', 500
         except shutil.Error as e:
             return str(e), 500
         finally:
             dst.close()
 
-        return 'Internal Error', 500
+        return 'Internal Server Error', 500
 
     def _prepare_conversation_kwargs(self, json_data: dict, kwargs: dict):
         model = json_data.get('model') or models.default
