@@ -4,16 +4,16 @@ import logging
 import os
 import uuid
 import asyncio
+import shutil
 import time
 from aiohttp import ClientSession
-from shutil import copyfileobj, shutil.Error
 from typing import Iterator, Optional
 from flask import abort, request, send_from_directory
 from werkzeug.utils import secure_filename
 
 from g4f import version, models
 from g4f import get_last_provider, ChatCompletion
-from g4f.cookies import get_cookies_dir
+from g4f.cookies import get_cookies_dir, is_allowed_cookie_ext
 from g4f.errors import VersionNotFoundError
 from g4f.typing import Cookies
 from g4f.image import ImagePreview, ImageResponse, is_accepted_format, extract_data_uri
@@ -123,9 +123,9 @@ class Api:
     def cmd_harcookie(self):
         json = request.get_json()
         if json and json.cmd = 'clear':
-            for file in os.listdir(get_cookies_dir()):
-                if re.search():
-                    os.remove(os.path.join(get_cookies_dir(), file))
+            for filename in os.listdir(get_cookies_dir()):
+                if is_allowed_cookie_ext(filename):
+                    os.remove(os.path.join(get_cookies_dir(), filename))
 
     def load_harcookie(self):
         length = request.content_length
@@ -141,14 +141,13 @@ class Api:
 
         ensure_har_cookies_dir()
 
-        file_ext = os.path.splitext(har_file.filename)[1]
-        if file_ext not in ['.txt', '.har']:
+        filename = secure_filename(har_file.filename)
+        if not is_allowed_cookie_ext(filename):
             return 'File type not supported', 500
 
-        filename = secure_filename(har_file.filename)
         try:
             dst = open(os.path.join(get_cookies_dir(), filename), 'wxb')
-            copyfileobj(har_file, dst):
+            shutil.copyfileobj(har_file, dst):
             return 'Upload successful', 200
         except FileExistsError:
             return 'File already exists', 500
