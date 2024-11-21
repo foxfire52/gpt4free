@@ -57,7 +57,7 @@ class Backend_Api(Api):
             },
             '/har_cookie': {
                 'function': self.har_cookie,
-                'methods': ['GET', 'POST']
+                'methods': ['POST']
             }
         }
 
@@ -98,10 +98,10 @@ class Backend_Api(Api):
         )
 
     def har_cookie(self):
-        if request.method == 'POST':
+        if request.is_json:
+            self.cmd_harcookie()
+        else:
             self.load_harcookie()
-        else if request.method == 'GET':
-            self.get_harcookie()
 
     def get_provider_models(self, provider: str):
         api_key = None if request.authorization is None else request.authorization.token
