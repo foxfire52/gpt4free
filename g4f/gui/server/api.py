@@ -123,6 +123,9 @@ class Api:
     def cmd_harcookie(self):
         json = request.get_json()
         if json and json.cmd = 'clear':
+            for file in os.listdir(get_cookies_dir()):
+                if re.search():
+                    os.remove(os.path.join(get_cookies_dir(), file))
 
     def load_harcookie(self):
         length = request.content_length
