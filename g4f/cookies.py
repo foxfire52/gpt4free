@@ -192,6 +192,19 @@ def read_cookie_files(dirPath: str = None):
                     print(f"Cookies added: {len(new_values)} from {domain}")
                 CookiesConfig.cookies[domain] = new_values
 
+def is_allowed_extension(filename: str) -> bool:
+    """
+    Checks if the given filename has an allowed extension.
+
+    Args:
+        filename (str): The filename to check.
+
+    Returns:
+        bool: True if the extension is allowed, False otherwise.
+    """
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 def _g4f(domain_name: str) -> list:
     """
     Load cookies from the 'g4f' browser (if exists).
