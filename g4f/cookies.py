@@ -192,7 +192,7 @@ def read_cookie_files(dirPath: str = None):
                     print(f"Cookies added: {len(new_values)} from {domain}")
                 CookiesConfig.cookies[domain] = new_values
 
-def is_allowed_extension(filename: str) -> bool:
+def is_allowed_cookie_ext(filename: str) -> bool:
     """
     Checks if the given filename has an allowed extension.
 
