@@ -1441,6 +1441,17 @@ function save_storage() {
     }
 }
 
+async function btn_update(btn, response) {
+    btn.classList.remove('fade-out', 'fa-check', 'fa-times');
+    btn.classList.add('fade-in');
+    if (response.status == 200){
+        btn.classList.add('fa-check');
+    } else {
+        btn.classList.add('fa-times');
+    }
+    setTimeout(() => { btn.classList.replace('fade-in', 'fade-out') }, 2000)
+}
+
 async function cmd_harcookie(cmd) {
     let btn = document.querySelector('.clear-done');
     let data = JSON.stringify({'cmd': cmd});
@@ -1452,14 +1463,7 @@ async function cmd_harcookie(cmd) {
         },
         body: data
     });
-    btn.classList.remove('fade-out', 'fa-check', 'fa-times');
-    btn.classList.add('fade-in');
-    if (response.status == 200){
-        btn.classList.add('fa-check');
-    } else {
-        btn.classList.add('fa-times');
-    }
-    setTimeout(() => { btn.classList.replace('fade-in', 'fade-out') }, 2000) 
+    await btn_update(btn, response);
 }
 
 async function upload_harcookie(input) {
@@ -1475,15 +1479,8 @@ async function upload_harcookie(input) {
             method: 'POST',
             body: body
         });
-        btn.classList.remove('fade-out', 'fa-check', 'fa-times');
-        btn.classList.add('fade-in');
-        if (response.status == 200){
-            btn.classList.add('fa-check');
-        } else {
-            btn.classList.add('fa-times');
-        }
+        await btn_update(btn, response);
     }
-    setTimeout(() => { btn.classList.replace('fade-in', 'fade-out') }, 2000) 
 }
 
 
