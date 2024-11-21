@@ -120,8 +120,13 @@
                 <button onclick="this.children[3].click()">
                     <i class="fa-solid fa-upload"></i>
                     <a href="" onclick="return false;">Upload cookies/har file</a>
-                    <i class="upload-done fa-solid"></i>
+                    <i class="request-done fa-solid"></i>
                     <input type="file" id="input-har_cookies" name="input-har_cookies" onchange="upload_harcookie(this)" accept="text/plain, .har" required/>
+                </button>
+                <button onclick="cmd_harcookie()">
+                    <i class="fa-regular fa-trash"></i>
+                    <a href="" onclick="return false;">Delete all</a>
+                    <i class="request-done fa-solid"></i>
                 </button>
             </div>
             <div class="field box">
