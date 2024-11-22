@@ -117,10 +117,11 @@
                 <label for="auto_continue" class="toogle" title="Continue large responses in OpenaiChat"></label>
             </div>
             <div class="bottom_buttons">
-                <button onclick="this.children[3].click()">
+                <button onclick="this.children[5].click()">
                     <i class="fa-solid fa-upload"></i>
                     <a href="" onclick="return false;">Upload cookies/har file</a>
                     <i class="btn-done fa-solid"></i>
+                    <br><p class="msg-done fa-regular"></p>
                     <input type="file" id="input-harcookie" name="input-harcookie" onchange="upload_harcookie(this)" accept="text/plain, .har" required/>
                 </button>
                 <button onclick="cmd_harcookie(this, 'clear')">
