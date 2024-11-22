@@ -1461,7 +1461,8 @@ async function button_update(button, response) {
     }
 
     let txt = await response.text();
-    if (msg && txt && txt != '') {
+    if (msg && response.status != 200
+        && txt && txt != '') {
         msg.classList.add('fade-in');
         msg.innerText = txt;
     }
