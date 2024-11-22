@@ -1036,6 +1036,12 @@ a:-webkit-any-link {
     display: none;
 }
 
+.msg-done {
+    font-family: var(--font-1);
+    color: var(--colour-2);
+    margin-top: 5px;
+}
+
 .fade-in {
   display: block;
   animation: fade-in 0.5s ease-in forwards;
