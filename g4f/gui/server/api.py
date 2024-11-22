@@ -156,6 +156,7 @@ class Api:
         except FileExistsError:
             return 'File already exists', 500
         except shutil.Error as e:
+            logger.error(e)
             return str(e), 500
         finally:
             if dst:
