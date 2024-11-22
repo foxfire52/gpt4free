@@ -99,9 +99,9 @@ class Backend_Api(Api):
 
     def har_cookie(self):
         if request.is_json:
-            self.cmd_harcookie()
+            return self.cmd_harcookie()
         else:
-            self.load_harcookie()
+            return self.load_harcookie()
 
     def get_provider_models(self, provider: str):
         api_key = None if request.authorization is None else request.authorization.token
