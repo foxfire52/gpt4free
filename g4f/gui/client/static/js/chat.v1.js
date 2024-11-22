@@ -1441,20 +1441,41 @@ function save_storage() {
     }
 }
 
-async function btn_update(btn, response) {
+async function button_update(button, response) {
+    const duration = 2000;
+    let btn = button.querySelector('.btn-done');
+    let msg = button.querySelector('.msg-done');
+
+    //Reset
+    if (msg) {
+        msg.innerText = '';
+        msg.classList.remove('fade-out');
+    }
     btn.classList.remove('fade-out', 'fa-check', 'fa-times');
+
     btn.classList.add('fade-in');
     if (response.status == 200){
         btn.classList.add('fa-check');
     } else {
         btn.classList.add('fa-times');
     }
-    setTimeout(() => { btn.classList.replace('fade-in', 'fade-out') }, 2000)
+
+    let txt = await response.text();
+    if (msg && txt && txt != '') {
+        msg.classList.add('fade-in');
+        msg.innerText = txt;
+    }
+    setTimeout(() => {
+        btn.classList.replace('fade-in', 'fade-out');
+        if (msg) {
+            msg.classList.replace('fade-in', 'fade-out');
+        }
+    }, duration)
 }
 
 async function cmd_harcookie(elmt, cmd) {
     const url = `/har_cookie`;
-    let btn = elmt.querySelector('.btn-done');
+    let button = elmt;
     let data = JSON.stringify({'cmd': cmd});
 
     let response = await fetch(url, {
@@ -1464,12 +1485,12 @@ async function cmd_harcookie(elmt, cmd) {
         },
         body: data
     });
-    await btn_update(btn, response);
+    await button_update(button, response);
 }
 
 async function upload_harcookie(input) {
     const url = `/har_cookie`;
-    let btn = input.parentElement.querySelector('.btn-done');
+    let button = input.parentElement;
     let file = input.files[0];
 
     if (file !== null) {
@@ -1480,7 +1501,8 @@ async function upload_harcookie(input) {
             method: 'POST',
             body: formData
         });
-        await btn_update(btn, response);
+        
+        await button_update(button, response);
     }
 }
 
