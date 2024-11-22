@@ -122,7 +122,7 @@ class Api:
 
     def cmd_harcookie(self):
         json = request.get_json()
-        if json and json.cmd = 'clear':
+        if json and json['cmd'] == 'clear':
             for filename in os.listdir(get_cookies_dir()):
                 if is_allowed_cookie_ext(filename):
                     os.remove(os.path.join(get_cookies_dir(), filename))
@@ -145,6 +145,7 @@ class Api:
         filename = secure_filename(har_file.filename)
         if not is_allowed_cookie_ext(filename):
             return 'File type not supported', 500
+        dst = None
 
         try:
             dst = open(os.path.join(get_cookies_dir(), filename), 'wxb')
@@ -155,7 +156,7 @@ class Api:
         except shutil.Error as e:
             return str(e), 500
         finally:
-            dst.close()
+            dst.close() if dst
 
         return 'Internal Server Error', 500
 
