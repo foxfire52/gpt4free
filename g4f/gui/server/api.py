@@ -121,6 +121,7 @@ class Api:
         return send_from_directory(os.path.abspath(images_dir), name)
 
     def cmd_harcookie(self):
+        ensure_har_cookies_dir()
         json = request.get_json()
         if json and json['cmd'] == 'clear':
             for filename in os.listdir(get_cookies_dir()):
@@ -141,7 +142,6 @@ class Api:
             return 'No file name', 500
 
         ensure_har_cookies_dir()
-
         filename = secure_filename(har_file.filename)
         if not is_allowed_cookie_ext(filename):
             return 'File type not supported', 500
