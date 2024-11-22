@@ -8,7 +8,7 @@ import shutil
 import time
 from aiohttp import ClientSession
 from typing import Iterator, Optional
-from flask import abort, request, send_from_directory
+from flask import request, send_from_directory
 from werkzeug.utils import secure_filename
 
 from g4f import version, models
@@ -134,7 +134,7 @@ class Api:
     def load_harcookie(self):
         length = request.content_length
         if length is not None and length > 50 * 1024 * 1024: #50MB max
-            abort(413)
+            return 'Uploaded file is too large', 413
 
         if 'file' not in request.files:
             return 'No file uploaded', 400
