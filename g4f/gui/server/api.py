@@ -156,7 +156,8 @@ class Api:
         except shutil.Error as e:
             return str(e), 500
         finally:
-            dst.close() if dst
+            if dst:
+                dst.close()
 
         return 'Internal Server Error', 500
 
