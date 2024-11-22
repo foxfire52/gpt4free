@@ -129,22 +129,24 @@ class Api:
                     os.remove(os.path.join(get_cookies_dir(), filename))
             return 'All har/cookies deleted', 200
 
+        return 'Internal Server Error', 500
+
     def load_harcookie(self):
         length = request.content_length
         if length is not None and length > 50 * 1024 * 1024: #50MB max
             abort(413)
 
         if 'file' not in request.files:
-            return 'No file uploaded', 500
+            return 'No file uploaded', 400
 
         har_file = request.files['file']
         if har_file.filename == '':
-            return 'No file name', 500
+            return 'No file name', 400
 
         ensure_har_cookies_dir()
         filename = secure_filename(har_file.filename)
         if not is_allowed_cookie_ext(filename):
-            return 'File type not supported', 500
+            return 'File type not supported', 400
         dst = None
 
         try:
