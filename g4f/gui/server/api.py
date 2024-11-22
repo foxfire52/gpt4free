@@ -148,7 +148,7 @@ class Api:
         dst = None
 
         try:
-            dst = open(os.path.join(get_cookies_dir(), filename), 'wxb')
+            dst = open(os.path.join(get_cookies_dir(), filename), 'xb')
             shutil.copyfileobj(har_file, dst):
             return 'Upload successful', 200
         except FileExistsError:
